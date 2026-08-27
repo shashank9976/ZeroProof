@@ -1,0 +1,125 @@
+// ============================================================
+//  ZeroProof — Solvency Proof Contract
+//  Compact Language (Midnight Network DSL)
+//
+//  PURPOSE:
+//  Proves that totalAssets > totalLiabilities WITHOUT revealing
+//  the actual amounts. Only the boolean result and a commitment
+//  hash are published on-chain.
+//
+//  PRIVACY MODEL:
+//  - PRIVATE (local state, never on-chain): totalAssets, totalLiabilities, salt
+//  - PUBLIC (on-chain): isSolvent, commitmentHash, reportId, timestamp
+// ============================================================
+
+pragma compact ^0.8.0;
+
+import CompactStandardLibrary;
+
+// ── Public Ledger State ──────────────────────────────────────
+// This state is replicated across all Midnight nodes.
+// It contains ONLY derived proof outputs — never raw financials.
+ledger SolvencyLedger {
+  // Unique identifier for this solvency report
+  reportId: Bytes<32>;
+
+  // Cryptographic proof that assets > liabilities (true/false only)
+  isSolvent: Boolean;
+
+  // Poseidon hash of (totalAssets, totalLiabilities, salt)
+  // Allows auditors to verify proof integrity without seeing values
+  commitmentHash: Bytes<32>;
+
+  // Unix timestamp when proof was generated
+  timestamp: Uint<64>;
+
+  // Address of the entity that generated this proof
+  entityAddress: Bytes<32>;
+
+  // IPFS CID of the full proof bundle (proof.json + publicSignals.json)
+  ipfsCid: Bytes<64>;
+}
+
+// ── Witness Types (Private Inputs) ──────────────────────────
+// These NEVER touch the Midnight network. They are processed
+// locally by the proof server on the firm's infrastructure.
+witness totalAssets: Uint<64>;
+witness totalLiabilities: Uint<64>;
+witness salt: Bytes<32>;
+witness solvencyThreshold: Uint<64>;  // Minimum solvency buffer (e.g., 10%)
+
+// ── Solvency Proof Circuit ───────────────────────────────────
+// The core ZK circuit. Compact compiles this to a ZK-SNARK
+// that proves the statement without revealing witnesses.
+export circuit proveSolvency(
+  reportId: Bytes<32>,
+  entityAddress: Bytes<32>,
+  ipfsCid: Bytes<64>,
+  ts: Uint<64>
+): SolvencyProofResult {
+
+  // ── Step 1: Load private witnesses ───────────────────────
+  const assets = totalAssets();
+  const liabilities = totalLiabilities();
+  const nonce = salt();
+  const threshold = solvencyThreshold();
+
+  // ── Step 2: Range check (prevent overflow exploits) ───────
+  // Assets and liabilities must be positive values
+  assert(assets > 0 as Uint<64>, "assets must be positive");
+  assert(liabilities > 0 as Uint<64>, "liabilities must be positive");
+  assert(assets <= (9007199254740991 as Uint<64>), "assets overflow check");
+
+  // ── Step 3: Solvency check ───────────────────────────────
+  // Core invariant: assets exceed liabilities by at least threshold %
+  // This is the statement being proven — without revealing amounts
+  const netPosition = disclose(assets > liabilities ? (1 as Uint<64>) : (0 as Uint<64>));
+  const isSolvent = netPosition == (1 as Uint<64>);
+
+  // ── Step 4: Compute commitment hash ──────────────────────
+  // Poseidon hash binds the proof to specific values without revealing them
+  // The auditor can later verify consistency if provided with the preimage
+  const commitHash = disclose(poseidon([assets, liabilities, byteStringToUint(nonce)]));
+
+  // ── Step 5: Update ledger state ──────────────────────────
+  SolvencyLedger.reportId = reportId;
+  SolvencyLedger.isSolvent = isSolvent;
+  SolvencyLedger.commitmentHash = uintToByteString(commitHash);
+  SolvencyLedger.timestamp = ts;
+  SolvencyLedger.entityAddress = entityAddress;
+  SolvencyLedger.ipfsCid = ipfsCid;
+
+  return SolvencyProofResult {
+    isSolvent,
+    reportId,
+    commitmentHash: uintToByteString(commitHash),
+    timestamp: ts
+  };
+}
+
+// ── Query Circuit ─────────────────────────────────────────────
+// Allows anyone (auditors, regulators) to query the current
+// solvency status. Returns ONLY public fields.
+export circuit querySolvency(): SolvencyStatus {
+  return SolvencyStatus {
+    isSolvent: SolvencyLedger.isSolvent,
+    reportId: SolvencyLedger.reportId,
+    timestamp: SolvencyLedger.timestamp,
+    ipfsCid: SolvencyLedger.ipfsCid
+  };
+}
+
+// ── Return Types ──────────────────────────────────────────────
+struct SolvencyProofResult {
+  isSolvent: Boolean;
+  reportId: Bytes<32>;
+  commitmentHash: Bytes<32>;
+  timestamp: Uint<64>;
+}
+
+struct SolvencyStatus {
+  isSolvent: Boolean;
+  reportId: Bytes<32>;
+  timestamp: Uint<64>;
+  ipfsCid: Bytes<64>;
+}

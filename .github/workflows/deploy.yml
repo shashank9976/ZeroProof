@@ -1,0 +1,54 @@
+name: Deploy
+
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+    inputs:
+      environment:
+        type: choice
+        options: [testnet, mainnet]
+        default: testnet
+
+jobs:
+  deploy-contracts:
+    name: Deploy to Midnight Testnet
+    runs-on: ubuntu-latest
+    if: github.ref == 'refs/heads/main'
+    environment: testnet
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with: { node-version: '20', cache: 'npm' }
+      - run: npm ci
+      - name: Deploy Compact contracts
+        env:
+          MIDNIGHT_NETWORK: ${{ secrets.MIDNIGHT_NETWORK }}
+          MIDNIGHT_RPC_URL: ${{ secrets.MIDNIGHT_RPC_URL }}
+          MIDNIGHT_WALLET_SEED: ${{ secrets.MIDNIGHT_WALLET_SEED }}
+          MIDNIGHT_PROOF_SERVER_URL: ${{ secrets.MIDNIGHT_PROOF_SERVER_URL }}
+        run: bash scripts/testnet-deploy.sh
+
+  deploy-frontend:
+    name: Deploy Frontend to Vercel
+    runs-on: ubuntu-latest
+    needs: [deploy-contracts]
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with: { node-version: '20', cache: 'npm' }
+      - run: npm ci
+      - name: Build frontend
+        env:
+          NEXT_PUBLIC_API_URL: ${{ secrets.API_URL }}
+          NEXT_PUBLIC_IPFS_GATEWAY: https://gateway.pinata.cloud/ipfs
+          NEXT_PUBLIC_MIDNIGHT_NETWORK: testnet
+        run: npm run build --workspace=packages/frontend
+      - name: Deploy to Vercel
+        uses: amondnet/vercel-action@v25
+        with:
+          vercel-token: ${{ secrets.VERCEL_TOKEN }}
+          vercel-org-id: ${{ secrets.VERCEL_ORG_ID }}
+          vercel-project-id: ${{ secrets.VERCEL_PROJECT_ID }}
+          working-directory: packages/frontend
+          vercel-args: '--prod'

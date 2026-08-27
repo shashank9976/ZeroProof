@@ -1,0 +1,78 @@
+# Audit Proof Process: How Regulators Use ZeroProof
+
+## Auditor Workflow
+
+### Step 1: Receive Notification
+
+The financial institution shares one piece of information:
+```
+An IPFS CID: QmYwAPJzv5CZsnA625s3Xf2nemtYgPpHdWEz79ojWnPbdG
+```
+
+That's it. No spreadsheets, no balance sheets, no customer lists.
+
+### Step 2: Navigate to Auditor View
+
+The auditor opens `https://zeroproof.app/auditor` and enters the CID.
+
+### Step 3: Proof Verification
+
+ZeroProof:
+1. Fetches the proof bundle from IPFS (verified against the CID)
+2. Runs Groth16 verification against the public verification key
+3. Extracts and displays the public signals
+
+**Verification is instant** (~1ms for Groth16).
+
+### Step 4: Review Compliance Status
+
+The auditor sees:
+
+```
+✅ COMPLIANCE VERIFIED
+├── Proof type: solvency
+├── Status: SOLVENT — Assets exceed liabilities
+├── Verified: 2024-01-15T09:30:00Z
+├── IPFS CID: QmYwAPJzv5CZsnA625s3...
+└── Proof System: Groth16 (BN128 curve)
+
+🔒 NOT DISCLOSED:
+├── Account balances
+├── Asset amounts
+├── Liability values
+└── Transaction history
+```
+
+### Step 5: Optional Blockchain Audit
+
+The auditor can independently verify on Midnight testnet:
+```
+midnight-explorer.testnet.midnight.network/address/<CONTRACT_ADDRESS>
+→ SolvencyLedger.isSolvent = true
+→ SolvencyLedger.reportId = a1b2c3...
+→ SolvencyLedger.timestamp = <unix timestamp>
+```
+
+## What Makes This Trust-Worthy
+
+### Mathematical Proof (Not Policy)
+
+Traditional compliance relies on:
+- Audit reports (can be falsified)
+- Access controls (can be circumvented)
+- Policy enforcement (depends on humans)
+
+ZeroProof relies on:
+- Groth16 soundness (mathematical theorem)
+- BN128 discrete logarithm hardness
+- Poseidon collision resistance
+
+If the proof verifies, the statement is true. No trust in humans required.
+
+### Tamper Evidence via IPFS
+
+The CID `QmYwAPJzv5CZsnA625s3...` is a SHA256-based content address. If anyone modifies even one byte of the proof bundle, the CID changes. The auditor checks: "Does the content at this CID hash to this CID?" If yes, the content is authentic.
+
+### On-Chain Immutability
+
+Once written to the Midnight Network, `SolvencyLedger.isSolvent = true` cannot be modified or deleted. The audit trail is permanent.

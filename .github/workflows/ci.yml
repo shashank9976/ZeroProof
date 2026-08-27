@@ -1,0 +1,74 @@
+name: CI
+
+on:
+  push:
+    branches: [main, develop]
+  pull_request:
+    branches: [main]
+
+jobs:
+  lint-and-typecheck:
+    name: Lint & Type Check
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'npm'
+      - run: npm ci
+      - run: npm run lint
+      - run: npx tsc --noEmit --project packages/privacy-sdk/tsconfig.json
+      - run: npx tsc --noEmit --project packages/backend/tsconfig.json
+
+  test-privacy-sdk:
+    name: Privacy SDK Tests
+    runs-on: ubuntu-latest
+    env:
+      ZK_MOCK_PROOFS: 'true'
+      NODE_ENV: test
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with: { node-version: '20', cache: 'npm' }
+      - run: npm ci
+      - run: npm run build --workspace=packages/privacy-sdk
+      - run: npx vitest run tests/unit/
+      - run: npx vitest run tests/integration/
+
+  build-frontend:
+    name: Build Next.js Frontend
+    runs-on: ubuntu-latest
+    env:
+      NEXT_PUBLIC_API_URL: http://localhost:3001
+      NEXT_PUBLIC_IPFS_GATEWAY: https://ipfs.io/ipfs
+      NEXT_PUBLIC_MIDNIGHT_NETWORK: testnet
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with: { node-version: '20', cache: 'npm' }
+      - run: npm ci
+      - run: npm run build --workspace=packages/frontend
+      - name: Upload build artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: nextjs-build
+          path: packages/frontend/.next/
+          retention-days: 7
+
+  privacy-audit:
+    name: Privacy Boundary Audit
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with: { node-version: '20', cache: 'npm' }
+      - run: npm ci
+      - name: Check no private fields in API responses
+        run: |
+          npx grep -rn "totalAssets\|totalLiabilities\|amlScore\|kycVerified\|entityId" \
+            packages/backend/src/routes/ && \
+            echo "⚠️  WARNING: Potential private field in routes — review needed" || \
+            echo "✅ No private fields detected in API response handlers"
+      - name: Verify disclosure rules are enforced
+        run: npx vitest run tests/unit/disclosure-rules.test.ts

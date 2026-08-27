@@ -1,0 +1,83 @@
+# Finance Compliance Use Case: Solvency Proof for Bank Auditors
+
+## Overview
+
+A regional bank, **First Meridian Bank**, must prove quarterly solvency to its regulator without exposing its balance sheet to competitors.
+
+## Step-by-Step
+
+### 1. Internal Preparation (Private)
+
+The bank's treasury team inputs their financial data into ZeroProof's internal dashboard:
+
+```
+Total Assets:      $1,284,500,000  (private)
+Total Liabilities: $1,089,200,000  (private)
+Net:               $195,300,000    (private)
+```
+
+These values are entered in the dashboard's Generate Proof modal. They never leave the bank's browser session.
+
+### 2. ZK Proof Generation
+
+The Solvency circuit processes:
+```
+Inputs (private): assets=128450000000, liabilities=108920000000, salt=<random>
+Circuit: GreaterThan(64) → isSolvent = 1
+Commitment: Poseidon(128450000000, 108920000000, salt) = 0x7f3a9b...
+```
+
+Generation time: **1.8 seconds**
+
+### 3. IPFS Receipt
+
+The proof bundle is uploaded:
+```
+CID: QmYwAPJzv5CZsnA625s3Xf2nemtYgPpHdWEz79ojWnPbdG
+URL: https://gateway.pinata.cloud/ipfs/QmYwAP...
+```
+
+### 4. On-Chain Publication
+
+The Compact contract updates the SolvencyLedger:
+```
+isSolvent: true
+reportId: a1b2c3d4...
+commitmentHash: 0x7f3a9b...
+ipfsCid: QmYwAPJzv5...
+timestamp: 2024-01-15T09:30:00Z
+```
+
+### 5. Auditor Access
+
+The regulator navigates to the Auditor View and enters the CID:
+
+**Auditor sees:**
+- ✅ **SOLVENCY VERIFIED** — Assets exceed liabilities
+- 🔗 IPFS receipt: `QmYwAPJzv5...`
+- 📅 Verified: January 15, 2024, 09:30 UTC
+
+**Auditor does NOT see:**
+- ❌ $1,284,500,000 in assets
+- ❌ $1,089,200,000 in liabilities
+- ❌ $195,300,000 net position
+
+### 6. Optional Deep Verification
+
+If the regulator suspects the proof is fraudulent, they can request the preimage:
+```
+First Meridian provides: (1284500000000, 1089200000000, salt)
+Regulator verifies: Poseidon(1284500000000, 1089200000000, salt) == 0x7f3a9b...
+```
+
+This reveals the exact figures — but only if First Meridian chooses to reveal them.
+
+## Regulatory Compliance Mapping
+
+| Requirement | ZeroProof Solution |
+|---|---|
+| Solvency ratio proof | Groth16 circuit `assets > liabilities` |
+| Tamper-evident audit trail | IPFS CID = content-addressed, immutable |
+| On-chain verification | Midnight Network Compact contract |
+| Data minimization (GDPR) | Only ZK proofs stored externally |
+| Audit trail | `reportId` + timestamp on-chain forever |

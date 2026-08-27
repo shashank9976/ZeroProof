@@ -1,0 +1,37 @@
+{
+  "name": "zeroproof",
+  "version": "1.0.0",
+  "private": true,
+  "description": "Privacy-first regulatory compliance SaaS using Zero-Knowledge Proofs on Midnight Network",
+  "workspaces": [
+    "packages/*"
+  ],
+  "scripts": {
+    "dev": "turbo run dev --parallel",
+    "build": "turbo run build",
+    "test": "turbo run test",
+    "lint": "turbo run lint",
+    "clean": "turbo run clean && rm -rf node_modules",
+    "generate-proof": "ts-node scripts/generate-proof.ts",
+    "deploy:testnet": "bash scripts/testnet-deploy.sh",
+    "start:all": "concurrently \"npm run dev -w @zeroproof/frontend\" \"npm run dev -w @zeroproof/backend\""
+  },
+  "devDependencies": {
+    "@types/node": "^20.14.0",
+    "concurrently": "^10.0.5",
+    "eslint": "^8.57.0",
+    "prettier": "^3.3.2",
+    "ts-node": "^10.9.2",
+    "turbo": "^2.0.0",
+    "typescript": "^5.4.5",
+    "vitest": "^1.6.0"
+  },
+  "engines": {
+    "node": ">=20.0.0",
+    "npm": ">=10.0.0"
+  },
+  "dependencies": {
+    "@next/swc-win32-x64-msvc": "^16.3.3",
+    "framer-motion": "^11.11.17"
+  }
+}

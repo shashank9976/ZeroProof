@@ -1,0 +1,26 @@
+{
+  "name": "@zeroproof/contracts",
+  "version": "1.0.0",
+  "private": true,
+  "description": "Compact smart contracts for ZeroProof — solvency and compliance ZK proofs on Midnight Network",
+  "main": "dist/index.js",
+  "types": "dist/index.d.ts",
+  "scripts": {
+    "build": "tsc && compact build src/proofs/",
+    "compile:solvency": "compact build src/proofs/solvency.compact",
+    "compile:compliance": "compact build src/proofs/compliance.compact",
+    "deploy:testnet": "ts-node src/deploy.ts",
+    "clean": "rm -rf dist"
+  },
+  "dependencies": {
+    "typescript": "^5.4.5"
+  },
+  "optionalDependencies": {
+    "@midnight-ntwrk/compact-runtime": "*",
+    "@midnight-ntwrk/midnight-js-types": "*"
+  },
+  "devDependencies": {
+    "typescript": "^5.4.5",
+    "@types/node": "^20.14.0"
+  }
+}
