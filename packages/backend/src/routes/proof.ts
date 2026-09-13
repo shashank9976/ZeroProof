@@ -155,7 +155,7 @@ proofRouter.post('/compliance', async (req: Request, res: Response) => {
 // ── GET /api/proof/verify/:cid ────────────────────────────────
 
 proofRouter.get('/verify/:cid', async (req: Request, res: Response) => {
-  const { cid } = req.params;
+  const cid = req.params['cid'];
 
   if (!cid || cid.length < 10) {
     res.status(400).json({ error: 'Invalid CID' });
@@ -197,7 +197,12 @@ proofRouter.get('/verify/:cid', async (req: Request, res: Response) => {
 // ── GET /api/proof/:cid ───────────────────────────────────────
 
 proofRouter.get('/:cid', async (req: Request, res: Response) => {
-  const { cid } = req.params;
+  const cid = req.params['cid'];
+
+  if (!cid || cid.length < 10) {
+    res.status(400).json({ error: 'Invalid CID' });
+    return;
+  }
 
   try {
     const bundle = await ipfsStorage.getProofBundle(cid);

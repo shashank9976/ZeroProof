@@ -120,7 +120,15 @@ auditRouter.get('/report/:entityAddress', async (req: Request, res: Response) =>
     }
   }
 
-  const overallStatus = deriveComplianceStatus({ isSolvent, kycPassed, amlPassed });
+  const checksForStatus: {
+    isSolvent?: boolean;
+    kycPassed?: boolean;
+    amlPassed?: boolean;
+  } = {};
+  if (isSolvent !== undefined) checksForStatus.isSolvent = isSolvent;
+  if (kycPassed !== undefined) checksForStatus.kycPassed = kycPassed;
+  if (amlPassed !== undefined) checksForStatus.amlPassed = amlPassed;
+  const overallStatus = deriveComplianceStatus(checksForStatus);
 
   res.json({
     entityAddress,
