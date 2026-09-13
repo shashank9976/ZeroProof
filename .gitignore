@@ -16,3 +16,4 @@ coverage/
 witness/
 proofs/output/
 .DS_Store
+.vercel
