@@ -2,6 +2,7 @@
   "name": "zeroproof",
   "version": "1.0.0",
   "private": true,
+  "packageManager": "npm@10.8.2",
   "description": "Privacy-first regulatory compliance SaaS using Zero-Knowledge Proofs on Midnight Network",
   "workspaces": [
     "packages/*"

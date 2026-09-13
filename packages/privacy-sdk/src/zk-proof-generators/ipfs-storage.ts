@@ -54,6 +54,10 @@ export class IPFSProofStorage {
    * @returns Upload result with CID and gateway URL
    */
   async uploadProofBundle(bundle: ZKProofBundle): Promise<IPFSUploadResult> {
+    if (process.env['ZK_MOCK_PROOFS'] === 'true' || process.env['NODE_ENV'] === 'test') {
+      return this.uploadMock(bundle);
+    }
+
     await this.init();
 
     // Try Helia first, fall back to Pinata HTTP API
@@ -70,6 +74,10 @@ export class IPFSProofStorage {
    * Retrieves a proof bundle from IPFS by CID.
    */
   async getProofBundle(cid: string): Promise<ZKProofBundle | null> {
+    if (process.env['ZK_MOCK_PROOFS'] === 'true' || process.env['NODE_ENV'] === 'test') {
+      return this.getMockBundle(cid);
+    }
+
     await this.init();
 
     if (this.jsonHelper && this.heliaInstance) {
