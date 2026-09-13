@@ -12,6 +12,7 @@
 import { Router, type Request, type Response } from 'express';
 import { z } from 'zod';
 import { v4 as uuidv4 } from 'uuid';
+import { registerProof } from './audit.js';
 import {
   generateSolvencyProof,
   verifySolvencyProof,
@@ -76,6 +77,7 @@ proofRouter.post('/solvency', async (req: Request, res: Response) => {
     // Upload proof bundle to IPFS
     const ipfsResult = await ipfsStorage.uploadProofBundle(bundle);
     attestation.ipfsCid = ipfsResult.cid;
+    await registerProof(entityAddress, ipfsResult.cid, 'solvency');
 
     // Return ONLY the public attestation — no private data
     res.status(201).json({
@@ -140,6 +142,7 @@ proofRouter.post('/compliance', async (req: Request, res: Response) => {
 
     const ipfsResult = await ipfsStorage.uploadProofBundle(bundle);
     attestation.ipfsCid = ipfsResult.cid;
+    await registerProof('compliance', ipfsResult.cid, 'compliance');
 
     res.status(201).json({
       success: true,

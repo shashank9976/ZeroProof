@@ -1,0 +1,6 @@
+{
+  "framework": "nextjs",
+  "buildCommand": "npm run build -w @zeroproof/frontend",
+  "outputDirectory": "packages/frontend/.next",
+  "installCommand": "npm install --ignore-scripts --legacy-peer-deps"
+}

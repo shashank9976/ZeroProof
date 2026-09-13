@@ -13,20 +13,22 @@
 import { Router, type Request, type Response } from 'express';
 import { ipfsStorage } from '@zeroproof/privacy-sdk';
 import { deriveComplianceStatus } from '@zeroproof/privacy-sdk';
+import { listProofs, saveProof, type StoredProofRef } from '../storage/proof-store.js';
 
 export const auditRouter = Router();
 
 // ── In-memory proof registry (use a database in production) ───
 // Maps entityAddress → array of proof CIDs
-const proofRegistry = new Map<string, Array<{ cid: string; type: string; timestamp: number }>>();
+const proofRegistry = new Map<string, Array<StoredProofRef>>();
 
 /**
  * Registers a new proof CID for an entity.
  * Called internally after successful proof generation.
  */
-export function registerProof(entityAddress: string, cid: string, type: string): void {
+export async function registerProof(entityAddress: string, cid: string, type: string): Promise<void> {
+  await saveProof({ entityAddress, cid, type });
   const existing = proofRegistry.get(entityAddress) ?? [];
-  existing.push({ cid, type, timestamp: Date.now() });
+  existing.push({ entityAddress, cid, type, timestamp: Date.now() });
   proofRegistry.set(entityAddress, existing);
 }
 
@@ -34,10 +36,7 @@ export function registerProof(entityAddress: string, cid: string, type: string):
 
 auditRouter.get('/status', async (_req: Request, res: Response) => {
   // Return aggregate stats — no individual entity data
-  const totalProofs = Array.from(proofRegistry.values()).reduce(
-    (sum, proofs) => sum + proofs.length,
-    0,
-  );
+  const totalProofs = (await listProofs()).length;
 
   res.json({
     platform: 'ZeroProof',
@@ -59,7 +58,7 @@ auditRouter.get('/status', async (_req: Request, res: Response) => {
 auditRouter.get('/report/:entityAddress', async (req: Request, res: Response) => {
   const { entityAddress } = req.params;
 
-  const proofs = proofRegistry.get(entityAddress as string);
+  const proofs = await listProofs(entityAddress);
 
   if (!proofs || proofs.length === 0) {
     res.status(404).json({
@@ -148,11 +147,7 @@ auditRouter.get('/report/:entityAddress', async (req: Request, res: Response) =>
 
 auditRouter.get('/history', async (_req: Request, res: Response) => {
   // Return recent proof events — anonymized at entity level
-  const allProofs: Array<{ cid: string; type: string; timestamp: number }> = [];
-
-  for (const proofs of proofRegistry.values()) {
-    allProofs.push(...proofs);
-  }
+  const allProofs = await listProofs();
 
   // Sort by timestamp descending, return last 50
   const recent = allProofs
